@@ -1,216 +1,205 @@
 // app/page.tsx
+"use client";
 
-"use client"; // <--- IMPORTANT: Add this for components with state and interactivity
+import { useState, FormEvent, useRef, useEffect } from "react";
+import { Plus, Sparkles, Mic, ArrowUp, Loader2, Bot, User, WandSparkles } from "lucide-react";
+import ReactMarkdown from 'react-markdown';
 
-import { useState, FormEvent } from 'react';
-import { Stethoscope, BrainCircuit, AlertTriangle, ShieldCheck, UserCheck, HeartPulse, Loader2 } from 'lucide-react';
-
-// Define a type for our results for better type-safety
-type TriageResult = {
-  urgency: {
-    level: 'High' | 'Medium' | 'Low';
-    assessment: string;
-  };
-  conditions: {
-    name: string;
-    probability: number;
-  }[];
-  recommendations: {
-    title: string;
-    details: string;
-    icon: React.ElementType;
-  }[];
+// Define the structure of a message in our chat
+type Message = {
+  role: "user" | "assistant";
+  content: string;
 };
 
-// --- Mock API Call Simulation ---
-// In a real hackathon, you'd replace this with an actual API call to your backend.
-const getMockTriageResult = async (symptoms: string): Promise<TriageResult> => {
-  return new Promise(resolve => {
-    setTimeout(() => {
-      // Simple logic for demonstration
-      if (symptoms.toLowerCase().includes('chest pain')) {
-        resolve({
-          urgency: { level: 'High', assessment: 'Immediate attention recommended.' },
-          conditions: [
-            { name: 'Myocardial Infarction (Heart Attack)', probability: 75 },
-            { name: 'Angina', probability: 60 },
-            { name: 'Anxiety Attack', probability: 45 },
-          ],
-          recommendations: [
-            { title: 'Go to A&E / Emergency Room', details: 'Seek immediate medical care. Do not drive yourself.', icon: AlertTriangle },
-            { title: 'Call Emergency Services', details: 'Dial 999 or your local emergency number.', icon: HeartPulse },
-          ],
-        });
-      } else {
-        resolve({
-          urgency: { level: 'Low', assessment: 'Monitor symptoms at home.' },
-          conditions: [
-            { name: 'Common Cold', probability: 85 },
-            { name: 'Allergic Rhinitis', probability: 50 },
-            { name: 'Sinusitis', probability: 40 },
-          ],
-          recommendations: [
-            { title: 'Self-Care', details: 'Rest, stay hydrated, and use over-the-counter medication if needed.', icon: ShieldCheck },
-            { title: 'Contact a GP if symptoms worsen', details: 'Schedule a non-urgent appointment with your doctor.', icon: UserCheck },
-          ],
-        });
-      }
-    }, 1500); // Simulate 1.5 second network delay
-  });
-};
-
-// Urgency Card Styling
-const urgencyStyles = {
-  High: {
-    bg: 'bg-red-50',
-    border: 'border-red-500',
-    text: 'text-red-800',
-    icon: <AlertTriangle className="h-8 w-8 text-red-500" />
-  },
-  Medium: {
-    bg: 'bg-yellow-50',
-    border: 'border-yellow-500',
-    text: 'text-yellow-800',
-    icon: <AlertTriangle className="h-8 w-8 text-yellow-500" />
-  },
-  Low: {
-    bg: 'bg-green-50',
-    border: 'border-green-500',
-    text: 'text-green-800',
-    icon: <ShieldCheck className="h-8 w-8 text-green-500" />
-  },
+// --- UPDATED ChatInputForm component ---
+// This is the only part that has changed.
+interface ChatInputFormProps {
+  input: string;
+  setInput: (value: string) => void;
+  handleSubmit: (e: FormEvent) => Promise<void>;
+  isLoading: boolean;
 }
 
+const ChatInputForm = ({ input, setInput, handleSubmit, isLoading }: ChatInputFormProps) => {
+  return (
+    <form onSubmit={handleSubmit} className="relative w-full max-w-3xl">
+      {/* Increased padding here from p-2 to p-3 for a larger height */}
+      <div className="relative flex items-center p-3 bg-gray-100 rounded-full shadow-sm border border-gray-200">
+        <button type="button" className="p-2 text-gray-500 hover:text-gray-800">
+          <Plus className="w-5 h-5" />
+        </button>
+        <button type="button" className="p-2 flex items-center gap-1 text-gray-500 hover:text-gray-800">
+          <WandSparkles className="w-5 h-5" />
+          <span className="text-sm font-medium">Tools</span>
+        </button>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault(); 
+              handleSubmit(e);
+            }
+          }}
+          // Updated placeholder text
+          placeholder="Ask anything..."
+          // Removed rows={1} as padding now controls the height
+          className="flex-grow px-4 py-2 bg-transparent resize-none focus:outline-none text-gray-800 placeholder-gray-500 overflow-y-auto max-h-32"
+        />
+        <button type="button" className="p-2 text-gray-500 hover:text-gray-800">
+          <Mic className="w-5 h-5" />
+        </button>
+        {/* Improved button styling for better user feedback */}
+        <button
+          type="submit"
+          disabled={!input.trim() || isLoading}
+          className="p-2.5 rounded-full transition-colors
+                     bg-blue-500 text-white hover:bg-blue-600 
+                     disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+        >
+          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5" />}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+
+// Main component for the chat page (NO CHANGES BELOW THIS LINE)
 export default function Home() {
-  const [symptomInput, setSymptomInput] = useState('');
+
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<TriageResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatContainerRef.current?.scrollTo({
+      top: chatContainerRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [messages]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!symptomInput.trim()) {
-      setError('Please describe your symptoms.');
-      return;
-    }
-    setError(null);
-    setIsLoading(true);
-    setResults(null);
+    if (!input.trim() || isLoading) return;
 
-    const triageData = await getMockTriageResult(symptomInput);
-    setResults(triageData);
-    setIsLoading(false);
+    const userMessage: Message = { role: "user", content: input };
+    setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+      if (!apiKey) throw new Error("Groq API key is not configured.");
+      
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: "llama3-8b-8192",
+          messages: [
+            { role: "system", content: "You are an AI-powered Symptom Triage Tool. Your goal is to help users by suggesting likely conditions, assessing urgency, and recommending next steps. Format your response clearly using markdown. Start with Urgency, then Possible Conditions, then Recommendations." },
+            { role: "user", content: currentInput },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error.message || `API request failed`);
+      }
+
+      const data = await response.json();
+      const aiResponseContent = data.choices[0]?.message?.content || "Sorry, I couldn't get a valid response.";
+      const assistantMessage: Message = { role: "assistant", content: aiResponseContent };
+      setMessages((prev) => [...prev, assistantMessage]);
+
+    } catch (error) {
+      console.error("API call error:", error);
+      const errorMessageContent = error instanceof Error ? error.message : "An unknown error occurred.";
+      const errorMessage: Message = { role: "assistant", content: `Sorry, something went wrong: ${errorMessageContent}` };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  return (
-    <main className="min-h-screen bg-gray-50 font-sans text-gray-800">
-      <div className="container mx-auto max-w-4xl p-4 sm:p-8">
-        
-        {/* Header */}
-        <header className="mb-8 text-center">
-          <div className="flex justify-center items-center gap-3">
-            <Stethoscope className="h-10 w-10 text-blue-600" />
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900">
-              Symptom Sentry
-            </h1>
-          </div>
-          <p className="mt-2 text-lg text-gray-600">
-            Your AI-powered guide for health next steps.
-          </p>
-        </header>
-        
-        {/* Symptom Input Form */}
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-          <form onSubmit={handleSubmit}>
-            <label htmlFor="symptoms" className="block text-lg font-semibold mb-2 text-gray-700">
-              Describe your symptoms
-            </label>
-            <textarea
-              id="symptoms"
-              name="symptoms"
-              rows={4}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
-              placeholder="e.g., I have a sharp headache, a fever of 38°C, and a sore throat..."
-              value={symptomInput}
-              onChange={(e) => setSymptomInput(e.target.value)}
-            />
-            {error && <p className="text-red-500 mt-2">{error}</p>}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="mt-4 w-full flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-all"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="animate-spin h-5 w-5" />
-                  Analyzing...
-                </>
-              ) : 'Analyze Symptoms'}
-            </button>
-          </form>
+  if (messages.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white p-4">
+        <div className="text-center mb-8">
+            <h1 className="text-4xl font-semibold text-gray-800">Where should we begin?</h1>
         </div>
+        <ChatInputForm
+          input={input}
+          setInput={setInput}
+          handleSubmit={handleSubmit}
+          isLoading={isLoading}
+        />
+      </div>
+    );
+  }
 
-        {/* Results Section */}
-        {results && (
-          <div className="mt-10 space-y-8 animate-fade-in">
-            {/* Urgency Assessment */}
-            <div className={`p-6 rounded-xl border-l-4 ${urgencyStyles[results.urgency.level].bg} ${urgencyStyles[results.urgency.level].border}`}>
-              <div className="flex items-start gap-4">
-                <div>{urgencyStyles[results.urgency.level].icon}</div>
-                <div>
-                  <h3 className={`text-xl font-bold ${urgencyStyles[results.urgency.level].text}`}>
-                    Urgency Level: {results.urgency.level}
-                  </h3>
-                  <p className="mt-1 text-gray-700">{results.urgency.assessment}</p>
+  return (
+    <div className="flex flex-col h-screen bg-white">
+      <main ref={chatContainerRef} className="flex-grow overflow-y-auto p-4 md:p-6">
+        <div className="max-w-3xl mx-auto space-y-6">
+          {messages.map((msg, index) => (
+            <div key={index} className={`flex items-start gap-4 animate-fade-in ${msg.role === 'user' ? 'justify-end' : ''}`}>
+              {msg.role === 'assistant' && (
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-gray-600" />
+                </div>
+              )}
+              <div className={`p-4 rounded-2xl max-w-xl ${
+                msg.role === 'user' 
+                ? 'bg-blue-500 text-white rounded-br-none' 
+                : 'bg-gray-100 text-gray-800 rounded-bl-none'
+              }`}>
+                <ReactMarkdown
+                  components={{
+                    // This will apply the classes to the root div rendered by react-markdown
+                    div: ({ node, ...props }) => <div className="prose prose-sm max-w-none" {...props} />
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              </div>
+               {msg.role === 'user' && (
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User className="w-5 h-5 text-gray-600" />
+                </div>
+              )}
+            </div>
+          ))}
+           {isLoading && (
+              <div className="flex items-start gap-4 animate-fade-in">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-gray-600" />
+                </div>
+                <div className="p-4 rounded-2xl bg-gray-100 flex items-center">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
                 </div>
               </div>
-            </div>
+          )}
+        </div>
+      </main>
 
-            {/* Likely Conditions & Next Steps */}
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Likely Conditions */}
-              <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <BrainCircuit className="h-6 w-6 text-blue-500" />
-                  Possible Conditions
-                </h3>
-                <ul className="space-y-3">
-                  {results.conditions.map((cond, index) => (
-                    <li key={index} className="flex justify-between items-center text-gray-600">
-                      <span>{cond.name}</span>
-                      <span className="text-sm font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                        {cond.probability}%
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Recommended Next Steps */}
-              <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <UserCheck className="h-6 w-6 text-green-500" />
-                  Recommended Next Steps
-                </h3>
-                <ul className="space-y-4">
-                  {results.recommendations.map((rec, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <div className="mt-1">
-                        <rec.icon className="h-5 w-5 text-gray-500" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-800">{rec.title}</p>
-                        <p className="text-sm text-gray-600">{rec.details}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
-
-      </div>
-    </main>
+      <footer className="p-4 bg-white/80 backdrop-blur-sm border-t border-gray-200">
+        <div className="flex justify-center">
+           <ChatInputForm
+            input={input}
+            setInput={setInput}
+            handleSubmit={handleSubmit}
+            isLoading={isLoading}
+          />
+        </div>
+      </footer>
+    </div>
   );
 }
