@@ -9,6 +9,10 @@ import json
 from typing import Dict, List, Tuple
 from collections import Counter
 import re
+from dotenv import load_dotenv
+
+# ⚡ API KEY SETUP
+load_dotenv()
 
 # ========================================
 # STEP 1: LOAD AND PROCESS THE DATASET (10 mins)
