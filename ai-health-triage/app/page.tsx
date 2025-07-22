@@ -173,7 +173,7 @@ export default function Home() {
   }
   return (
     <div className="flex flex-col h-screen bg-white">
-      <header className="p-4 border-b border-gray-200 flex-shrink-0"><div className="max-w-3xl mx-auto"><h1 className="text-xl font-semibold text-gray-800">AI Voice Assistant</h1></div></header>
+      <header className="p-4 border-b border-gray-200 flex-shrink-0"><div className="max-w-3xl mx-auto"><h1 className="text-xl font-semibold text-gray-800">Synapse Health AI</h1></div></header>
       <main ref={chatContainerRef} className="flex-grow overflow-y-auto p-4 md:p-6">
         {messages.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
