@@ -12,7 +12,9 @@ const ELEVENLABS_API_KEY = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '';
 const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_STT_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
-const ELEVENLABS_VOICE_ID = 'Rachel';
+// --- THIS IS THE FIX ---
+// The API requires the specific Voice ID, not the name "Rachel".
+const ELEVENLABS_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; 
 const ELEVENLABS_TTS_URL = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}/stream`;
 
 type Message = {
@@ -41,8 +43,8 @@ export default function Home() {
   // --- Text-to-Speech (TTS) with ElevenLabs ---
   const playAudio = async (text: string) => {
     if (!text.trim() || !ELEVENLABS_API_KEY) {
-        if (!ELEVENLABS_API_KEY) setError("ElevenLabs API Key is not configured.");
-        return;
+      if (!ELEVENLABS_API_KEY) setError("ElevenLabs API Key is not configured.");
+      return;
     };
     setIsSpeaking(true);
     setError(null);
@@ -53,10 +55,8 @@ export default function Home() {
         body: JSON.stringify({ text, model_id: "eleven_turbo_v2" }),
       });
       
-      // --- THIS IS THE IMPROVED ERROR HANDLING ---
       if (!response.ok) {
-        // Try to get detailed error from ElevenLabs API response body
-        const errorData = await response.json().catch(() => null); // Use catch in case the body isn't valid JSON
+        const errorData = await response.json().catch(() => null);
         const detail = errorData?.detail?.message || response.statusText;
         throw new Error(`ElevenLabs API Error (${response.status}): ${detail}`);
       }
@@ -118,7 +118,6 @@ export default function Home() {
 
   // --- Voice Recording and Transcription (STT) ---
   const handleToggleRecording = async () => {
-    // ... This function is correct and does not need changes ...
     if (error) { setError(null); return; }
     if (isRecording) {
       mediaRecorderRef.current?.stop();
@@ -159,7 +158,6 @@ export default function Home() {
   };
   
   // --- UI Rendering ---
-  // ... This section is correct and does not need changes ...
   const renderVoiceButton = () => {
     let icon = <Mic className="w-8 h-8" />; let text = "Click to speak"; let buttonClass = "bg-blue-500 hover:bg-blue-600";
     if (error) { icon = <AlertTriangle className="w-8 h-8" />; text = "Click to try again"; buttonClass = "bg-red-500 hover:bg-red-600";
